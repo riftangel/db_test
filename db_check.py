@@ -133,6 +133,7 @@ def initialize_curses_vars(first=False):
             curses.start_color()
             curses.noecho()
             curses.cbreak()
+            scrwin.keypad(1)
         except:
             print '* curses initialization error *'
             sys.exit(-1)
@@ -195,53 +196,172 @@ def initialize_sqlite_vars(db_name='test.db'):
     for entry in db_cur:
         fieldwin.addnstr(pos, 0, str(entry), fieldw)
         pos += 1
-
 #
+# Simple Exception Class
+#
+class InvalidArg(Exception):
+    def __init__(self, txt, value):
+        self.txt = txt
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+    
 # Dialog class
 # http://docs.python.org/library/curses.html
 #
-def test_dialog():
+class test_dialog():
 
-    # Compute location in parent window (default main screen window)
-    scrh, scrw = scrwin.getmaxyx()
-    diag_h = 10
-    diag_w = 24
-    diag_x = (scrw - diag_w) / 2
-    diag_y = (scrh - diag_h) / 2
-    
-    diag_win = curses.newwin(diag_h, diag_w, diag_y, diag_x)
-    diag_pan = curses.panel.new_panel(diag_win)
+    def __init__(self):
+        # Compute location in parent window (default main screen window)
+        scrh, scrw = scrwin.getmaxyx()
+        self.diag_h = 10
+        self.diag_w = 24
+        self.diag_x = (scrw - self.diag_w) / 2
+        self.diag_y = (scrh - self.diag_h) / 2
 
-    diag_pan.top()
-    diag_pan.show()
+        # Sanity check
+        if self.diag_h < 5:
+            raise InvalidArg('* dialog height is too small', self.diag_h)
 
-    # Basic Dialog. Title, Message, Buttons
-    diag_title = 'Dialog Title'
-    diag_title_x = (diag_w - len(diag_title)) / 2  # Best if we don't skip 1 char for border/boxing
-    diag_title_y = 1            # skip 1 char for border/boxing
-    diag_title_border_x = 1
-    color = curses.COLOR_BLUE
-    curses.init_pair( color, curses.COLOR_BLUE, curses.COLOR_WHITE)
-    diag_pan.window().addstr( diag_title_y, diag_title_border_x, (diag_w - diag_title_border_x * 2) * ' ', \
-                              curses.color_pair(color) )
-    diag_pan.window().addstr( diag_title_y, diag_title_x, diag_title, curses.color_pair(color) )
-    
-    curses.panel.update_panels()
-    curses.doupdate()
+        self.diag_win = curses.newwin(self.diag_h, self.diag_w, self.diag_y, self.diag_x)
+        self.diag_pan = curses.panel.new_panel(self.diag_win)
 
-    diag_win.box()
+        # Basic Dialog. Title, Message, Buttons
+        self.diag_title = 'Dialog Title'
+        self.diag_title_x = (self.diag_w - len(self.diag_title)) / 2  # Best if we don't skip 1 char for border/boxing
+        self.diag_title_y = 1            # skip 1 char for border/boxing
+        self.diag_title_border_x = 1
+        self.diag_title_color = curses.COLOR_BLUE
+        curses.init_pair( self.diag_title_color, self.diag_title_color, curses.COLOR_WHITE)
+ 
+        # Content Area
+        self.diag_content = ('random test to fill dialog\n' * self.diag_h).split('\n')
+        self.diag_content = ['Simple Dialog', 'with basic header', 'content and buttons', 'more', 'and more' ]
+        self.diag_content += [ 'to come', 'in future release' ]
+        self.diag_content_y = 2
+        self.diag_content_x = 1
+        self.diag_content_index = 0
+        self.diag_content_pos = 0   # Start from the begining of the content list
+
+        # Buttons Area
+        self.diag_btn_orig = [ 'OK', 'BACK', 'CANCEL' ]
+        self.diag_btn_select = 0
+        self.diag_btn = self.diag_btn_orig[:]
+        self.diag_btn[ self.diag_btn_select ] = '<' + self.diag_btn[ self.diag_btn_select ] + '>'
+        self.diag_btn_text = reduce( lambda x,y: x + ' ' + y, self.diag_btn)
+        self.diag_btn_w = reduce( lambda x,y: x + y + 1, map( lambda x: len(x), self.diag_btn) ) + 2 # L/R borders
+        self.diag_btn_x = ( self.diag_w - self.diag_btn_w) / 2
+        self.diag_btn_y = self.diag_h - 2
+        self.diag_btn_border_x = 1
+        self.diag_btn_color = curses.COLOR_RED
+        curses.init_pair( self.diag_btn_color, self.diag_btn_color, curses.COLOR_WHITE)
+
+        # Misc
+        self.key = -1
+        self.valid_keys = { curses.KEY_UP   : self.process_up, \
+                            curses.KEY_DOWN : self.process_down, \
+                            curses.KEY_RIGHT: self.process_right, \
+                            curses.KEY_LEFT : self.process_left }
+
+    def process_up(self):
+        if self.diag_content_pos < len( self.diag_content ) - 1:
+            self.diag_content_pos += 1
+        
+    def process_down(self):
+        if self.diag_content_pos:
+            self.diag_content_pos -= 1
+
+    def process_right(self):
+        if self.diag_btn_select < len( self.diag_btn ) -1 :
+            self.diag_btn_select += 1
+
+    def process_left(self):
+        if self.diag_btn_select:
+            self.diag_btn_select -= 1
     
-    while diag_win.getch() == -1:
-        pass
-    
+    def process_dialog(self):
+
+        self.diag_win.keypad(1)
+        while True:
+            self.key = self.diag_win.getch()
+            # Debug
+            fieldwin.addnstr(3, 0, str(self.key), fieldw, curses.A_BOLD)
+            fieldwin.addnstr(4, 0, str(self.valid_keys.keys()), fieldw, curses.A_BOLD)
+            curses.panel.update_panels()
+            curses.doupdate()
+            
+            if self.key == ord('\n'):
+                break
+            if self.key in self.valid_keys.keys():
+                self.valid_keys[ self.key ]()
+                self.refresh()
+
+    def add_title(self):
+       self.diag_pan.window().addstr( self.diag_title_y, self.diag_title_border_x, \
+                                      (self.diag_w - self.diag_title_border_x * 2) * ' ', \
+                                      curses.color_pair(self.diag_title_color) )
+       self.diag_pan.window().addstr( self.diag_title_y, self.diag_title_x, self.diag_title, \
+                                       curses.color_pair(self.diag_title_color) )
+
+    def add_content(self):
+        self.diag_content_index = 0
+        for self.diag_content_line in self.diag_content[self.diag_content_pos:]:
+            if (self.diag_content_index + self.diag_content_pos ) > len(self.diag_content):
+                break
+            if self.diag_content_index == ( self.diag_h - 3 ): # L/R BORDERS + TITLE + BUTTON (- 1 for ZERO base)
+                break
+            self.diag_pan.window().addstr(self.diag_content_y + self.diag_content_index, self.diag_content_x, \
+                                     self.diag_content_line )
+            self.diag_content_index += 1
+
+    def add_buttons(self):
+        self.diag_btn = self.diag_btn_orig[:]
+        self.diag_btn[ self.diag_btn_select ] = '<' + self.diag_btn[ self.diag_btn_select ] + '>'
+        self.diag_btn_text = reduce( lambda x,y: x + ' ' + y, self.diag_btn)
+        
+        self.diag_pan.window().addstr( self.diag_btn_y, self.diag_btn_border_x, \
+                                       (self.diag_w - self.diag_btn_border_x * 2) * ' ', \
+                                       curses.color_pair(self.diag_btn_color) )
+        self.diag_pan.window().addstr( self.diag_btn_y, self.diag_btn_x, \
+                                       self.diag_btn_text, curses.color_pair(self.diag_btn_color) )
+        
+    def display(self):
+
+        self.add_title()
+        self.add_content()
+        self.add_buttons()
+        
+        self.diag_pan.top()
+        self.diag_pan.show()
+        self.diag_win.box()
+        
+        curses.panel.update_panels()
+        curses.doupdate()
+
+        self.process_dialog()
+
+    def refresh(self):
+
+        # TBD: Need to support only content area refresh (use separate pan)
+        self.diag_pan.window().erase()
+        self.add_title()
+        self.add_content()
+        self.add_buttons()
+        self.diag_win.box()
+        
+        curses.panel.update_panels()
+        curses.doupdate()
+            
 if __name__ == '__main__':
     print 'DB Check'
 
     initialize_curses_vars(True)
 
-    test_dialog()
-
+    dialog = test_dialog()
+    dialog.display()
+    
     reset_terminal()
+    print '* dialog return *', dialog.diag_btn_select    
     sys.exit(0)
     
     edata = crypto_aes_encrypt_blob( 'this is some text to encrypt', 'my secret key' )
