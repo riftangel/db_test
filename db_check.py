@@ -209,6 +209,97 @@ class InvalidArg(Exception):
 # Dialog class
 # http://docs.python.org/library/curses.html
 #
+class table_window():
+
+    def __init__(self):
+        # Compute location in parent window
+        self.scrh, self.scrw = scrwin.getmaxyx()
+        self.tab_h = 20
+        self.tab_w = 24
+        self.tab_x = (self.scrw - self.tab_w) / 2
+        self.tab_y = (self.scrh - self.tab_h) / 2
+
+        self.tab_win = curses.newwin(self.tab_h, self.tab_w, self.tab_y, self.tab_x)
+        self.tab_pan = curses.panel.new_panel(self.tab_win)
+
+    def populate(self):
+
+        col0_content = ('row of data\n' * 30).split('\n')
+        col1_content = []
+        col2_content = []
+        for value in range(0,20):
+            col1_content.append( value )
+            if value % 2:
+                col2_content.append( True )
+            else:
+                col2_content.append( False )
+        # Name, Width, Type, Attributes (bit_flags), content]
+        tab = [ [ 'column_name0', 8, type(""), 0,  col0_content ], \
+                [ 'column_name1', 4, type(0), 0, col1_content ], \
+                [ 'column_name2', 2, type(True), 0, col2_content] ]
+        self.tab_def = tab
+        
+        # Compute size of all columns plus L/R borders
+        self.tab_all_col_w = 0
+        for col in tab:
+            self.tab_all_col_w += col[1] + 1
+        self.tab_all_col_w += 1
+
+        # Compute max row size
+        self.tab_all_row_h = 0
+        for col in tab:
+            if len( col[4] ) > self.tab_all_row_h:
+                self.tab_all_row_h = len( col[4] )
+        self.tab_all_row_h += 1        # Add 1 ROW for Title
+
+        # pad should be at least equal to the window size
+        if self.tab_all_col_w < self.tab_w:
+            self.tab_all_col_w = self.tab_w
+        if self.tab_all_row_h < self.tab_h:
+            self.tab_all_row_h = self.tab_h
+            
+        self.tab_pad = curses.newpad( self.tab_all_col_w , self.tab_all_row_h )
+        #        for y in range(0, self.tab_all_col_w):
+        #    for x in range(0, self.tab_all_row_h):
+        #        try: self.tab_pad.addch( y,x, ord('a') + (x*x + y*y) % 26)
+        #        except curses.error: pass
+        
+    def refresh(self):
+
+        # Start at first/column 0
+        self.tab_col_index = 0
+
+        # Compute pannel for each column
+        # ...
+
+    def display(self):
+        
+        fieldwin.addnstr(1, 0, str(self.tab_all_col_w), fieldw, curses.A_BOLD)
+        fieldwin.addnstr(2, 0, str(self.tab_all_row_h), fieldw, curses.A_BOLD)
+        curses.panel.update_panels()
+
+        #        self.tab_pad.box()
+        self.tab_pad.addnstr(1,0,"0123456789"*4, self.tab_w-4, curses.A_BOLD)
+        self.tab_pad.addnstr(2,1,str(self.tab_all_col_w), self.tab_w-4, curses.A_BOLD)
+        self.tab_pad.addnstr(3,1,str(self.tab_all_row_h), self.tab_w-4, curses.A_BOLD)
+        self.tab_pad.addnstr(4,1,str(self.tab_w), self.tab_w-4, curses.A_BOLD)
+        self.tab_pad.addnstr(5,1,str(self.tab_h), self.tab_w-4, curses.A_BOLD)
+        
+        #self.tab_win.box()
+        self.tab_pad.box()
+        self.tab_pad.refresh( 0, 0, self.tab_y, self.tab_x, \
+                              self.tab_y+self.tab_w+2, self.tab_x+self.tab_h )
+        curses.panel.update_panels()
+        curses.doupdate()
+        
+    def navigate(self):
+        
+        self.tab_win.keypad(1)
+        while True:
+            self.key = self.tab_win.getch()
+            if self.key == ord('\n'):
+                break
+            
 class test_dialog():
 
     def __init__(self):
@@ -357,11 +448,17 @@ if __name__ == '__main__':
 
     initialize_curses_vars(True)
 
-    dialog = test_dialog()
-    dialog.display()
+#    dialog = test_dialog()
+#    dialog.display()
+
+    tab = table_window()
+    tab.populate()
+    tab.refresh()
+    tab.display()
+    tab.navigate()
     
     reset_terminal()
-    print '* dialog return *', dialog.diag_btn_select    
+    # print '* dialog return *', dialog.diag_btn_select    
     sys.exit(0)
     
     edata = crypto_aes_encrypt_blob( 'this is some text to encrypt', 'my secret key' )
