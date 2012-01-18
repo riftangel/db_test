@@ -590,18 +590,47 @@ def ask_meta_pwd(meta_hello='Please enter Meta Password'):
     pww = password_window(pwx,pwy,pww)
     pww.display()
     pwd = pww.getpwd()
-    
+
+#
+# FORMS SUPPORT
+#
+class base_form():
+
+    def __init__(self, win=scrwin):
+        pass
+
+    def setup_form(self, form_def):
+        pass
+
+    def display(self):
+        pass
+
+    def process(self):
+        pass
+
+import layout
+#
+# __MAIN__
+#
 if __name__ == '__main__':
     print 'DB Check'
 
     initialize_curses_vars(True)
+
+    bf = base_form()
+    
+    reset_terminal()
+
+    layout.main()
+    
+    sys.exit(0)
 #
 # Meta Pwd
 #
     ask_meta_pwd()
     
-# dialog = test_dialog()
-#    dialog.display()
+    #dialog = test_dialog()
+    #dialog.display()
 
     tab = table_window()
     tab.populate()
