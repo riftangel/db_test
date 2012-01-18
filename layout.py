@@ -297,8 +297,26 @@ def adjust_layout_to_panel(lmat, row_s, col_s, adjx, adjy):
     for ix in range(0, dim_x):
         sum_col += col_s[ix]
     for ix in range(0, dim_x):
-        col_s[ix] =  ((100.0 / (sum_col * 1.0)) * col_s[ix]) * adjx / 100.0  
+        col_s[ix] =  ((100.0 / (sum_col * 1.0)) * col_s[ix]) * adjx / 100.0
         
+    sum_row = 0
+    for iy in range(0, dim_y):
+        sum_row += row_s[iy]
+    for iy in range(0, dim_y):
+        row_s[iy] =  ((100.0 / (sum_row * 1.0)) * row_s[iy]) * adjy / 100.0  
+
+    panels_mtx = []
+    pos_y = 0
+    for iy in range(0, dim_y):
+        pos_x = 0
+        for ix in range(0, dim_x):
+            panels_mtx.append( [ ix, iy, pos_x, pos_y, int(col_s[ix])-1, int(row_s[iy])-1 ] )
+            pos_x += int(col_s[ix])
+        pos_y += int(row_s[iy])
+            
+    return panels_mtx
+
+    
 def main(scrx=80, scry=25):
     
     global lm_x, lm_y
@@ -306,8 +324,10 @@ def main(scrx=80, scry=25):
 
     lm_x, lm_y, layout_mat, row_s, col_s = compute_layout_matrix( layout_def )
     display_layout_mat( layout_mat, row_s, col_s )
-    adjust_layout_to_panel( layout_mat, row_s, col_s, scrx, scry)
+    pnl_mtx = adjust_layout_to_panel( layout_mat, row_s, col_s, scrx, scry)
     display_layout_mat( layout_mat, row_s, col_s )
+
+    print pnl_mtx
     
 if __name__ == '__main__':
 
